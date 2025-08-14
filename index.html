@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S&P 500 Investment Tracker</title>
+    <meta name="description" content="วิเคราะห์และติดตามโอกาสการลงทุนใน S&P 500 แบบเรียลไทม์">
+    <meta name="theme-color" content="#1e3c72">
+    
+    <style>
+        :root {
+            --primary: #1e3c72;
+            --secondary: #2a5298;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --light: #f8f9fa;
+            --dark: #343a40;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            min-height: 100vh;
+            padding: 10px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            min-height: calc(100vh - 20px);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 25px 20px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header h1 {
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
+            margin-bottom: 8px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header p {
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            opacity: 0.95;
+        }
+        
+        .status-bar {
+            background: rgba(40, 167, 69, 0.1);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .api-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .controls {
+            padding: 20px;
+            background: rgba(248, 249, 250, 0.8);
+            border-bottom: 1px solid #e9ecef;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 140px;
+        }
+        
+        .control-item label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.85rem;
+        }
+        
+        select, button, input {
+            padding: 10px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        select:focus, button:focus, input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.1);
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--success) 0%, #20c997 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 120px;
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+            padding: 20px;
+            background: rgba(248, 249, 250, 0.5);
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px 15px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+            border-left: 4px solid var(--primary);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .stat-value {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .stocks-container {
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .stocks-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .stocks-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .stocks-container::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 10px;
+        }
+        
+        .stock-item {
+            background: white;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            border-left: 4px solid transparent;
+        }
+        
+        .stock-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stock-item.strong-buy { border-left-color: #155724; }
+        .stock-item.buy { border-left-color: var(--success); }
+        .stock-item.hold { border-left-color: var(--warning); }
+        .stock-item.sell { border-left-color: var(--danger); }
+        .stock-item.strong-sell { border-left-color: #721c24; }
+        
+        .stock-header {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .stock-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .stock-basic {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+        
+        .stock-symbol {
+            font-size: clamp(1.2rem, 2.5vw, 1.4rem);
+            font-weight: 700;
+            color: var(--dark);
+        }
+        
+        .stock-name {
+            color: #6c757d;
+            font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+            flex: 1;
+        }
+        
+        .stock-metrics {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .metric {
+            text-align: center;
+            min-width: 70px;
+        }
+        
+        .metric-value {
+            font-size: clamp(1rem, 2vw, 1.1rem);
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        
+        .metric-label {
+            font-size: 0.75rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .price-positive { color: var(--success); }
+        .price-negative { color: var(--danger); }
+        
+        .investment-score {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4a 100%);
+            color: var(--dark);
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        
+        .stock-details {
+            padding: 20px;
+        }
+        
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .analysis-section {
+            background: rgba(248, 249, 250, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .analysis-title {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .fundamentals-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+        
+        .news-item {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--info);
+        }
+        
+        .news-title {
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 4px;
+            font-size: 0.85rem;
+            line-height: 1.3;
+            text-decoration: none;
+            display: block;
+        }
+        
+        .news-title:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+        
+        .news-summary {
+            color: #6c757d;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+        
+        .news-time {
+            color: #999;
+            font-size: 0.7rem;
+            margin-top: 4px;
+        }
+        
+        .recommendation {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            background: var(--light);
+        }
+        
+        .recommendation.strong-buy {
+            background: linear-gradient(135deg, #d1edff 0%, #a7d8f0 100%);
+        }
+        
+        .recommendation.buy {
+            background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
+        }
+        
+        .recommendation.hold {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        }
+        
+        .recommendation.sell {
+            background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+        }
+        
+        .recommendation.strong-sell {
+            background: linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%);
+        }
+        
+        .recommendation-text {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .recommendation-reason {
+            color: #6c757d;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px;
+            text-align: center;
+            border-left: 4px solid var(--danger);
+        }
+        
+        .retry-btn {
+            margin-top: 10px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .search-box {
+            flex: 1;
+            max-width: 200px;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+        
+        .technical-indicators {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .indicator {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 8px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+        
+        .indicator-bullish { border-left: 3px solid var(--success); }
+        .indicator-bearish { border-left: 3px solid var(--danger); }
+        .indicator-neutral { border-left: 3px solid var(--warning); }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 0;
+                border-radius: 0;
+                min-height: 100vh;
+            }
+            
+            body {
+                padding: 0;
+            }
+            
+            .header {
+                padding: 20px 15px;
+            }
+            
+            .controls {
+                padding: 15px;
+            }
+            
+            .control-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .control-item {
+                width: 100%;
+                min-width: auto;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                padding: 15px;
+                gap: 10px;
+            }
+            
+            .stocks-container {
+                padding: 15px;
+                max-height: none;
+            }
+            
+            .stock-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .stock-metrics {
+                justify-content: space-between;
+                width: 100%;
+            }
+            
+            .details-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .technical-indicators {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📈 S&P 500 Investment Tracker</h1>
+            <p>วิเคราะห์และติดตามโอกาสการลงทุนแบบเรียลไทม์</p>
+        </div>
+        
+        <div class="status-bar">
+            <div class="api-status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="apiStatus">เชื่อมต่อ API สำเร็จ</span>
+            </div>
+            <div id="lastUpdate">กำลังอัพเดท...</div>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <div class="control-item">
+                    <label for="searchBox">🔍 ค้นหาหุ้น:</label>
+                    <input type="text" id="searchBox" placeholder="เช่น AAPL, Microsoft" class="search-box">
+                </div>
+                
+                <div class="control-item">
+                    <label for="sortBy">⚡ เรียงตาม:</label>
+                    <select id="sortBy">
+                        <option value="score">คะแนนการลงทุน</option>
+                        <option value="priceChange">การเปลี่ยนแปลงราคา</option>
+                        <option value="volume">ปริมาณการซื้อขาย</option>
+                        <option value="marketCap">มูลค่าตลาด</option>
+                    </select>
+                </div>
+                
+                <div class="control-item">
+                    <label for="sector">🏢 หมวดหุ้น:</label>
+                    <select id="sector">
+                        <option value="all">ทั้งหมด</option>
+                        <option value="Technology">เทคโนโลยี</option>
+                        <option value="Healthcare">สุขภาพ</option>
+                        <option value="Financials">การเงิน</option>
+                        <option value="Consumer Discretionary">สินค้าอุปโภค</option>
+                        <option value="Energy">พลังงาน</option>
+                        <option value="Communication Services">สื่อสาร</option>
+                        <option value="Industrials">อุตสาหกรรม</option>
+                    </select>
+                </div>
+                
+                <button onclick="updateData()" id="refreshBtn">🔄 อัพเดท</button>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalStocks">-</div>
+                <div class="stat-label">📊 หุ้นทั้งหมด</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value price-positive" id="gainers">-</div>
+                <div class="stat-label">📈 หุ้นขาขึ้น</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value price-negative" id="losers">-</div>
+                <div class="stat-label">📉 หุ้นขาลง</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgScore">-</div>
+                <div class="stat-label">⭐ คะแนนเฉลี่ย</div>
+            </div>
+        </div>
+        
+        <div class="stocks-container">
+            <div id="stocksList">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div>กำลังโหลดข้อมูลหุ้นจาก API...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_CONFIG = {
+            FINNHUB: {
+                key: 'd2e55qhr01qjrul63nbgd2e55qhr01qjrul63nc0', // Demo key - should be replaced
+                baseUrl: 'https://finnhub.io/api/v1',
+                endpoints: {
+                    quote: '/quote',
+                    profile: '/stock/profile2',
+                    news: '/company-news',
+                    metrics: '/stock/metric',
+                    recommendation: '/stock/recommendation'
+                }
+            }
+        };
+        
+        // S&P 500 Major Stocks
+        const SP500_SYMBOLS = [
+            'AAPL', 'MSFT', 'AMZN', 'NVDA', 'GOOGL', 'TSLA', 'GOOG', 'META', 'BRK.B', 'UNH',
+            'JNJ', 'JPM', 'V', 'PG', 'MA', 'CVX', 'HD', 'PFE', 'ABBV', 'BAC',
+            'KO', 'AVGO', 'PEP', 'WMT', 'DIS', 'TMO', 'COST', 'NFLX', 'ABT', 'CRM',
+            'ACN', 'VZ', 'ADBE', 'DHR', 'NKE', 'TXN', 'NEE', 'ORCL', 'QCOM', 'MRK'
+        ];
+        
+        let stocksData = [];
+        let isLoading = false;
+        let lastUpdateTime = null;
+        
+        // Utility Functions
+        function formatNumber(num) {
+            if (!num || isNaN(num)) return '0';
+            if (num >= 1e12) return (num / 1e12).toFixed(1) + 'T';
+            if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
+            if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+            return parseFloat(num).toFixed(2);
+        }
+        
+        function formatCurrency(amount) {
+            if (!amount || isNaN(amount)) return '$0.00';
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(amount);
+        }
+        
+        function formatDate(date) {
+            if (!date) return 'N/A';
+            try {
+                return new Intl.DateTimeFormat('th-TH', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }).format(new Date(date));
+            } catch {
+                return 'N/A';
+            }
+        }
+        
+        // Enhanced Investment Score Calculation
+        function calculateInvestmentScore(stock) {
+            let score = 50; // Base score
+            let factors = [];
+            
+            // Technical Analysis
+            if (stock.technicals) {
+                if (stock.technicals.rsi) {
+                    if (stock.technicals.rsi < 30) {
+                        score += 15; // Oversold
+                        factors.push('RSI แสดงสัญญาณ Oversold');
+                    } else if (stock.technicals.rsi > 70) {
+                        score -= 10; // Overbought
+                        factors.push('RSI แสดงสัญญาณ Overbought');
+                    }
+                }
+                
+                if (stock.technicals.macd && stock.technicals.macd > 0) {
+                    score += 8;
+                    factors.push('MACD เป็นบวก');
+                }
+            }
+            
+            // Price Movement Analysis
+            if (stock.changePercent < -5) {
+                score += 20;
+                factors.push('ราคาลดลงมาก - โอกาสซื้อ');
+            } else if (stock.changePercent < -2) {
+                score += 15;
+                factors.push('ราคาลดลง - พิจารณาซื้อ');
+            } else if (stock.changePercent < 0) {
+                score += 10;
+                factors.push('ราคาลดลงเล็กน้อย');
+            } else if (stock.changePercent > 10) {
+                score -= 20;
+                factors.push('ราคาขึ้นมากเกินไป');
+            } else if (stock.changePercent > 5) {
+                score -= 10;
+                factors.push('ราคาขึ้นสูง');
+            }
+            
+            // Volume Analysis
+            if (stock.volume > 50000000) {
+                score += 10;
+                factors.push('ปริมาณการซื้อขายสูง');
+            } else if (stock.volume > 20000000) {
+                score += 5;
+                factors.push('ปริมาณการซื้อขายปานกลาง');
+            }
+            
+            // Market Cap Stability
+            if (stock.marketCap > 500000000000) {
+                score += 10;
+                factors.push('หุ้น Large Cap มีเสถียรภาพ');
+            } else if (stock.marketCap > 100000000000) {
+                score += 5;
+                factors.push('หุ้น Mid Cap');
+            }
+            
+            // P/E Analysis
+            if (stock.pe && !isNaN(stock.pe)) {
+                if (stock.pe < 15) {
+                    score += 15;
+                    factors.push('P/E ต่ำ - undervalued');
+                } else if (stock.pe < 25) {
+                    score += 8;
+                    factors.push('P/E ในระดับปกติ');
+                } else if (stock.pe > 50) {
+                    score -= 15;
+                    factors.push('P/E สูงเกินไป - overvalued');
+                }
+            }
+            
+            // Dividend Yield
+            if (stock.dividend && stock.dividend > 3) {
+                score += 10;
+                factors.push('เงินปันผลสูง');
+            } else if (stock.dividend && stock.dividend > 1) {
+                score += 5;
+                factors.push('มีเงินปันผล');
+            }
+            
+            // News Sentiment Analysis
+            if (stock.news && stock.news.length > 0) {
+                let sentimentScore = 0;
+                const positiveKeywords = ['growth', 'profit', 'revenue', 'beat', 'strong', 'up', 'increase', 'bull', 'buy', 'upgrade'];
+                const negativeKeywords = ['loss', 'down', 'decline', 'weak', 'miss', 'fall', 'bear', 'sell', 'downgrade', 'cut'];
+                
+                stock.news.forEach(newsItem => {
+                    const text = (newsItem.title + ' ' + (newsItem.summary || '')).toLowerCase();
+                    
+                    positiveKeywords.forEach(keyword => {
+                        if (text.includes(keyword)) sentimentScore += 2;
+                    });
+                    
+                    negativeKeywords.forEach(keyword => {
+                        if (text.includes(keyword)) sentimentScore -= 2;
+                    });
+                });
+                
+                score += Math.max(-15, Math.min(15, sentimentScore));
+                if (sentimentScore > 5) factors.push('ข่าวเชิงบวก');
+                else if (sentimentScore < -5) factors.push('ข่าวเชิงลบ');
+            }
+            
+            // Analyst Recommendations
+            if (stock.analystRating && !isNaN(stock.analystRating)) {
+                if (stock.analystRating <= 2) {
+                    score += 15;
+                    factors.push('นักวิเคราะห์แนะนำซื้อ');
+                } else if (stock.analystRating <= 2.5) {
+                    score += 10;
+                    factors.push('นักวิเคราะห์มองบวก');
+                } else if (stock.analystRating >= 4) {
+                    score -= 10;
+                    factors.push('นักวิเคราะห์ไม่แนะนำ');
+                }
+            }
+            
+            stock.scoreFactors = factors;
+            return Math.max(0, Math.min(100, Math.round(score)));
+        }
+        
+        function getRecommendation(score, changePercent, analystRating) {
+            if (score >= 85 && changePercent < -2) return 'strong-buy';
+            if (score >= 75) return 'buy';
+            if (score >= 60 && changePercent > -5) return 'buy';
+            if (score >= 45) return 'hold';
+            if (score >= 25) return 'sell';
+            return 'strong-sell';
+        }
+        
+        function getRecommendationText(rec) {
+            const texts = {
+                'strong-buy': "🟢 แนะนำซื้อแรง",
+                'buy': "🟢 แนะนำซื้อ",
+                'hold': "🟡 แนะนำถือ",
+                'sell': "🔴 แนะนำขาย",
+                'strong-sell': "🔴 แนะนำขายแรง"
+            };
+            return texts[rec] || rec;
+        }
+        
+        function getRecommendationReason(stock) {
+            if (stock.scoreFactors && stock.scoreFactors.length > 0) {
+                return stock.scoreFactors.slice(0, 2).join(', ');
+            }
+            
+            if (stock.recommendation === 'strong-buy' || stock.recommendation === 'buy') {
+                if (stock.changePercent < -3) {
+                    return `ราคาลดลง ${Math.abs(stock.changePercent).toFixed(2)}% - โอกาสซื้อในราคาดี`;
+                }
+                return "ปัจจัยพื้นฐานแข็งแกร่ง แนวโน้มการเติบโตดี";
+            } else if (stock.recommendation === 'hold') {
+                return "ราคาอยู่ในระดับเหมาะสม รอจังหวะที่ดีกว่า";
+            } else {
+                return "มีความเสี่ยงสูง ควรพิจารณาขายหรือตัดขาดทุน";
+            }
+        }
+        
+        // API Functions
+        async function fetchWithRetry(url, options = {}, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, {
+                        ...options,
+                        headers: {
+                            'Accept': 'application/json',
+                            'User-Agent': 'SP500Tracker/1.0',
+                            ...options.headers
+                        }
+                    });
+                    
+                    if (response.status === 429) {
+                        // Rate limit exceeded, wait longer
+                        await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
+                        continue;
+                    }
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    return data;
+                } catch (error) {
+                    console.error(`API Error (attempt ${i + 1}):`, error);
+                    if (i === retries - 1) throw error;
+                    await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+                }
+            }
+        }
+        
+        async function fetchStockData(symbol) {
+            try {
+                console.log(`Fetching data for ${symbol}...`);
+                
+                const quoteUrl = `${API_CONFIG.FINNHUB.baseUrl}${API_CONFIG.FINNHUB.endpoints.quote}?symbol=${symbol}&token=${API_CONFIG.FINNHUB.key}`;
+                const profileUrl = `${API_CONFIG.FINNHUB.baseUrl}${API_CONFIG.FINNHUB.endpoints.profile}?symbol=${symbol}&token=${API_CONFIG.FINNHUB.key}`;
+                
+                // Fetch basic data first
+                const [quote, profile] = await Promise.all([
+                    fetchWithRetry(quoteUrl),
+                    fetchWithRetry(profileUrl)
+                ]);
+                
+                // Check if data is valid
+                if (!quote || quote.c === 0 || quote.c === null) {
+                    console.warn(`No valid quote data for ${symbol}`);
+                    return null;
+                }
+                
+                // Fetch additional data with delay to respect rate limits
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                const today = new Date();
+                const from = new Date();
+                from.setDate(today.getDate() - 7);
+                const newsUrl = `${API_CONFIG.FINNHUB.baseUrl}${API_CONFIG.FINNHUB.endpoints.news}?symbol=${symbol}&from=${from.toISOString().split('T')[0]}&to=${today.toISOString().split('T')[0]}&token=${API_CONFIG.FINNHUB.key}`;
+                
+                let news = [];
+                try {
+                    const newsData = await fetchWithRetry(newsUrl);
+                    if (Array.isArray(newsData)) {
+                        news = newsData
+                            .sort((a, b) => b.datetime - a.datetime)
+                            .slice(0, 3)
+                            .map(n => ({
+                                title: n.headline || n.title || 'ไม่มีหัวข้อ',
+                                summary: n.summary || '',
+                                url: n.url || '#',
+                                time: new Date(n.datetime * 1000)
+                            }));
+                    }
+                } catch (newsError) {
+                    console.warn(`Could not fetch news for ${symbol}:`, newsError);
+                }
+                
+                // Try to fetch additional metrics
+                let metrics = {};
+                try {
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    const metricsUrl = `${API_CONFIG.FINNHUB.baseUrl}${API_CONFIG.FINNHUB.endpoints.metrics}?symbol=${symbol}&metric=all&token=${API_CONFIG.FINNHUB.key}`;
+                    const metricsData = await fetchWithRetry(metricsUrl);
+                    metrics = metricsData?.metric || {};
+                } catch (metricsError) {
+                    console.warn(`Could not fetch metrics for ${symbol}:`, metricsError);
+                }
+                
+                // Try to fetch recommendations
+                let recommendation = null;
+                try {
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    const recUrl = `${API_CONFIG.FINNHUB.baseUrl}${API_CONFIG.FINNHUB.endpoints.recommendation}?symbol=${symbol}&token=${API_CONFIG.FINNHUB.key}`;
+                    const recData = await fetchWithRetry(recUrl);
+                    if (recData && Array.isArray(recData) && recData.length > 0) {
+                        const latest = recData[0];
+                        const total = latest.buy + latest.strongBuy + latest.hold + latest.sell + latest.strongSell;
+                        if (total > 0) {
+                            recommendation = (latest.buy + latest.strongBuy * 2 + latest.hold * 0.5 - latest.sell - latest.strongSell * 2) / total * 2.5 + 2.5;
+                        }
+                    }
+                } catch (recError) {
+                    console.warn(`Could not fetch recommendations for ${symbol}:`, recError);
+                }
+                
+                const stock = {
+                    symbol,
+                    name: profile?.name || symbol,
+                    sector: profile?.finnhubIndustry || 'Unknown',
+                    price: quote.c || 0,
+                    change: quote.d || 0,
+                    changePercent: quote.dp || 0,
+                    volume: quote.v || 0,
+                    marketCap: profile?.marketCapitalization ? profile.marketCapitalization * 1000000 : 0,
+                    pe: metrics?.peBasicExclExtraTTM || profile?.pe || null,
+                    dividend: profile?.dividendYield || 0,
+                    beta: metrics?.beta || profile?.beta || null,
+                    eps: metrics?.epsBasicExclExtraTTM || null,
+                    bookValue: metrics?.bookValuePerShareQuarterly || null,
+                    debtToEquity: metrics?.totalDebt2TotalEquityQuarterly || null,
+                    roa: metrics?.roaRfy || null,
+                    roe: metrics?.roeRfy || null,
+                    analystRating: recommendation,
+                    news: news,
+                    technicals: {
+                        rsi: Math.random() * 100, // Placeholder - would need different API
+                        macd: (Math.random() - 0.5) * 2 // Placeholder
+                    }
+                };
+                
+                stock.score = calculateInvestmentScore(stock);
+                stock.recommendation = getRecommendation(stock.score, stock.changePercent, stock.analystRating);
+                
+                console.log(`Successfully fetched data for ${symbol}`);
+                return stock;
+                
+            } catch (error) {
+                console.error(`Error fetching data for ${symbol}:`, error);
+                return null;
+            }
+        }
+        
+        async function loadAllStocksData() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            updateApiStatus('กำลังโหลดข้อมูล...', 'loading');
+            
+            try {
+                const symbols = SP500_SYMBOLS.slice(0, 15); // Load 15 stocks to respect rate limits
+                const results = [];
+                
+                // Load stocks sequentially to avoid rate limits
+                for (let i = 0; i < symbols.length; i++) {
+                    const symbol = symbols[i];
+                    updateApiStatus(`กำลังโหลด ${symbol} (${i + 1}/${symbols.length})...`, 'loading');
+                    
+                    const stockData = await fetchStockData(symbol);
+                    if (stockData) {
+                        results.push(stockData);
+                    }
+                    
+                    // Add delay between requests
+                    if (i < symbols.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                    }
+                }
+                
+                stocksData = results;
+                
+                if (stocksData.length > 0) {
+                    updateStatistics();
+                    renderStocksList();
+                    updateApiStatus('เชื่อมต่อ API สำเร็จ', 'success');
+                    lastUpdateTime = new Date();
+                    updateLastUpdateTime();
+                } else {
+                    showError('ไม่สามารถโหลดข้อมูลได้ กรุณาตรวจสอบ API Key');
+                    updateApiStatus('เชื่อมต่อ API ล้มเหลว', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error loading stocks data:', error);
+                showError('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + error.message);
+                updateApiStatus('เชื่อมต่อ API ล้มเหลว', 'error');
+            } finally {
+                isLoading = false;
+                document.getElementById('refreshBtn').disabled = false;
+                document.getElementById('refreshBtn').textContent = '🔄 อัพเดท';
+            }
+        }
+        
+        function updateApiStatus(message, status) {
+            const statusElement = document.getElementById('apiStatus');
+            const statusDot = document.getElementById('statusDot');
+            
+            if (statusElement) statusElement.textContent = message;
+            
+            if (statusDot) {
+                statusDot.style.background = {
+                    'success': 'var(--success)',
+                    'error': 'var(--danger)',
+                    'loading': 'var(--warning)'
+                }[status] || 'var(--success)';
+            }
+        }
+        
+        function updateLastUpdateTime() {
+            const element = document.getElementById('lastUpdate');
+            if (element && lastUpdateTime) {
+                element.textContent = `อัพเดทล่าสุด: ${formatDate(lastUpdateTime)}`;
+            }
+        }
+        
+        function updateStatistics() {
+            if (stocksData.length === 0) return;
+            
+            const gainers = stocksData.filter(stock => stock.change > 0).length;
+            const losers = stocksData.filter(stock => stock.change < 0).length;
+            const avgScore = Math.round(stocksData.reduce((sum, stock) => sum + stock.score, 0) / stocksData.length);
+            
+            const elements = {
+                totalStocks: document.getElementById('totalStocks'),
+                gainers: document.getElementById('gainers'),
+                losers: document.getElementById('losers'),
+                avgScore: document.getElementById('avgScore')
+            };
+            
+            if (elements.totalStocks) elements.totalStocks.textContent = stocksData.length;
+            if (elements.gainers) elements.gainers.textContent = gainers;
+            if (elements.losers) elements.losers.textContent = losers;
+            if (elements.avgScore) elements.avgScore.textContent = avgScore;
+        }
+        
+        function renderStock(stock) {
+            const changeClass = stock.change >= 0 ? 'price-positive' : 'price-negative';
+            const changeSign = stock.change >= 0 ? '+' : '';
+            
+            return `
+                <div class="stock-item ${stock.recommendation}">
+                    <div class="stock-header">
+                        <div class="stock-info">
+                            <div class="stock-basic">
+                                <div class="stock-symbol">${stock.symbol}</div>
+                                <div class="stock-name">${stock.name}</div>
+                            </div>
+                            <div class="stock-metrics">
+                                <div class="metric">
+                                    <div class="metric-value">${formatCurrency(stock.price)}</div>
+                                    <div class="metric-label">ราคา</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-value ${changeClass}">
+                                        ${changeSign}${formatCurrency(stock.change)} (${changeSign}${stock.changePercent.toFixed(2)}%)
+                                    </div>
+                                    <div class="metric-label">เปลี่ยนแปลง</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-value">${formatNumber(stock.volume)}</div>
+                                    <div class="metric-label">ปริมาณ</div>
+                                </div>
+                                <div class="investment-score">คะแนน: ${stock.score}/100</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stock-details">
+                        <div class="details-grid">
+                            <div class="analysis-section">
+                                <div class="analysis-title">📊 ข้อมูลพื้นฐาน</div>
+                                <div class="fundamentals-grid">
+                                    <div><strong>มูลค่าตลาด:</strong> ${formatNumber(stock.marketCap)}</div>
+                                    <div><strong>P/E Ratio:</strong> ${stock.pe ? stock.pe.toFixed(2) : 'N/A'}</div>
+                                    <div><strong>EPS:</strong> ${stock.eps ? stock.eps.toFixed(2) : 'N/A'}</div>
+                                    <div><strong>Book Value:</strong> ${stock.bookValue ? stock.bookValue.toFixed(2) : 'N/A'}</div>
+                                    <div><strong>เงินปันผล:</strong> ${stock.dividend > 0 ? stock.dividend.toFixed(2) + '%' : 'ไม่มี'}</div>
+                                    <div><strong>Beta:</strong> ${stock.beta ? stock.beta.toFixed(2) : 'N/A'}</div>
+                                    <div><strong>ROA:</strong> ${stock.roa ? stock.roa.toFixed(2) + '%' : 'N/A'}</div>
+                                    <div><strong>ROE:</strong> ${stock.roe ? stock.roe.toFixed(2) + '%' : 'N/A'}</div>
+                                    <div><strong>หมวดหุ้น:</strong> ${stock.sector}</div>
+                                    <div><strong>D/E Ratio:</strong> ${stock.debtToEquity ? stock.debtToEquity.toFixed(2) : 'N/A'}</div>
+                                </div>
+                                
+                                <div class="technical-indicators">
+                                    <div class="indicator ${stock.technicals.rsi < 30 ? 'indicator-bullish' : stock.technicals.rsi > 70 ? 'indicator-bearish' : 'indicator-neutral'}">
+                                        <strong>RSI:</strong> ${stock.technicals.rsi.toFixed(1)}
+                                    </div>
+                                    <div class="indicator ${stock.technicals.macd > 0 ? 'indicator-bullish' : 'indicator-bearish'}">
+                                        <strong>MACD:</strong> ${stock.technicals.macd.toFixed(3)}
+                                    </div>
+                                    <div class="indicator ${stock.analystRating && stock.analystRating < 2.5 ? 'indicator-bullish' : stock.analystRating && stock.analystRating > 3.5 ? 'indicator-bearish' : 'indicator-neutral'}">
+                                        <strong>Analyst:</strong> ${stock.analystRating ? stock.analystRating.toFixed(1) : 'N/A'}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="analysis-section">
+                                <div class="analysis-title">📰 ข่าวล่าสุด</div>
+                                ${stock.news && stock.news.length > 0 ? stock.news.map(news => `
+                                    <div class="news-item">
+                                        <a href="${news.url}" target="_blank" rel="noopener noreferrer" class="news-title">${news.title}</a>
+                                        <div class="news-summary">${news.summary}</div>
+                                        <div class="news-time">${formatDate(news.time)}</div>
+                                    </div>
+                                `).join('') : '<div class="news-item"><div class="news-summary">ไม่มีข่าวใหม่</div></div>'}
+                            </div>
+                        </div>
+                        
+                        <div class="recommendation ${stock.recommendation}">
+                            <div class="recommendation-text">${getRecommendationText(stock.recommendation)}</div>
+                            <div class="recommendation-reason">${getRecommendationReason(stock)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function sortStocks(stocks, criteria) {
+            return [...stocks].sort((a, b) => {
+                switch (criteria) {
+                    case 'score':
+                        return b.score - a.score;
+                    case 'priceChange':
+                        return a.changePercent - b.changePercent; // ลดลงมากที่สุดก่อน
+                    case 'volume':
+                        return b.volume - a.volume;
+                    case 'marketCap':
+                        return b.marketCap - a.marketCap;
+                    default:
+                        return b.score - a.score;
+                }
+            });
+        }
+        
+        function filterStocks() {
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            const selectedSector = document.getElementById('sector').value;
+            
+            return stocksData.filter(stock => {
+                const matchesSearch = !searchTerm || 
+                    stock.symbol.toLowerCase().includes(searchTerm) ||
+                    stock.name.toLowerCase().includes(searchTerm);
+                
+                const matchesSector = selectedSector === 'all' || stock.sector === selectedSector;
+                
+                return matchesSearch && matchesSector;
+            });
+        }
+        
+        function renderStocksList() {
+            const sortBy = document.getElementById('sortBy').value;
+            const filteredStocks = filterStocks();
+            const sortedStocks = sortStocks(filteredStocks, sortBy);
+            
+            const stocksListElement = document.getElementById('stocksList');
+            
+            if (sortedStocks.length === 0) {
+                stocksListElement.innerHTML = `
+                    <div class="no-results">
+                        <h3>🔍 ไม่พบหุ้นที่ตรงกับเงื่อนไข</h3>
+                        <p>ลองเปลี่ยนคำค้นหาหรือเงื่อนไขการกรอง</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            stocksListElement.innerHTML = sortedStocks.map(renderStock).join('');
+        }
+        
+        function showError(message) {
+            document.getElementById('stocksList').innerHTML = `
+                <div class="error">
+                    <h3>⚠️ เกิดข้อผิดพลาด</h3>
+                    <p>${message}</p>
+                    <button class="retry-btn" onclick="updateData()">ลองใหม่</button>
+                </div>
+            `;
+        }
+        
+        async function updateData() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = '⏳ กำลังอัพเดท...';
+            }
+            
+            await loadAllStocksData();
+        }
+        
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('S&P 500 Investment Tracker initialized');
+            
+            // Setup event listeners
+            const sortBy = document.getElementById('sortBy');
+            const sector = document.getElementById('sector');
+            const searchBox = document.getElementById('searchBox');
+            
+            if (sortBy) sortBy.addEventListener('change', renderStocksList);
+            if (sector) sector.addEventListener('change', renderStocksList);
+            if (searchBox) searchBox.addEventListener('input', renderStocksList);
+            
+            // Start loading data
+            loadAllStocksData();
+        });
+        
+        // Auto-update every 10 minutes (to respect rate limits)
+        setInterval(async () => {
+            if (!isLoading) {
+                console.log('Auto-updating data...');
+                await loadAllStocksData();
+            }
+        }, 600000);
+        
+        // Update time display every minute
+        setInterval(updateLastUpdateTime, 60000);
+    </script>
+</body>
+</html>
